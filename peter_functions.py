@@ -19,9 +19,9 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 def load_mat_file(num_subject, chop, file_path, option):
 
     if option == 1:
-        file_name = f"{file_path}}/Calib_data_{num_subject}_chop_{chop}.mat"
+        file_name = f"{file_path}/Calib_data_{num_subject}_chop_{chop}.mat"
     elif option == 2:
-        file_name = f"{file_path}}/Eval_data_{num_subject}_chop_{chop}.mat"
+        file_name = f"{file_path}/Eval_data_{num_subject}_chop_{chop}.mat"
 
     mat_file = io.loadmat(file_name)
 
