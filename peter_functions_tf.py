@@ -16,7 +16,7 @@ import wandb
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def load_mat_file(num_subject, chop, file_path, option):
+def load_mat_file(chop, file_path, option):
 
     if option == 1:
         file_name = f"{file_path}/DY_KA_{chop}_CSdata_1.mat"
