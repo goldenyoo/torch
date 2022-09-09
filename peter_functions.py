@@ -87,6 +87,38 @@ def build_dataset(batch_size, k_train, a_train, y_train, k_test, a_test,
     return train_DL, valid_DL, test_DL
 
 
+def build_dataset_tf(batch_size, k_train, a_train, y_train, k_test, a_test,
+                     y_test):
+    dataset_train = TensorDataset(k_train, a_train,
+                                  y_train)  # 각 tensor의 첫번째 dim이 일치해야한다
+    dataset_test = TensorDataset(k_test, a_test,
+                                 y_test)  # 각 tensor의 첫번째 dim이 일치해야한다
+
+    # Data Split
+    dataset_size = len(dataset_train)
+    train_size = int(dataset_size * 0.8)
+    valid_size = dataset_size - train_size
+
+    dataset_size2 = len(dataset_test)
+    test_size = int(dataset_size2 * 0.8)
+    tf_size = dataset_size2 - test_size
+
+    train_dataset, valid_dataset = random_split(dataset_train,
+                                                [train_size, valid_size])
+    test_dataset, tf_dataset = random_split(dataset_test, [test_size, tf_size])
+
+    train_DL = DataLoader(train_dataset,
+                          batch_size=batch_size,
+                          shuffle=True,
+                          drop_last=True)
+    valid_DL = DataLoader(valid_dataset, batch_size=valid_size, shuffle=False)
+
+    test_DL = DataLoader(test_dataset, batch_size=len(test_dataset))
+    tf_DL = DataLoader(tf_dataset, batch_size=len(tf_dataset))
+
+    return train_DL, valid_DL, test_DL, tf_DL
+
+
 def build_optimizer(network, optimizer, learning_rate):
     if optimizer == "sgd":
         optimizer = optim.SGD(network.parameters(),
