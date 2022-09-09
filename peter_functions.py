@@ -141,7 +141,7 @@ def Train(model, train_DL, val_DL, config=None):
     for epoch in range(config.epochs):
         rloss = 0
         model.train()
-        for batch_idx, samples in enumerate(train_DL):
+        for _, samples in enumerate(train_DL):
 
             k_train_mb, a_train_mb, y_train_mb = samples
 
@@ -210,10 +210,94 @@ def Train(model, train_DL, val_DL, config=None):
         scheduler.step()
 
 
+def Train_tf(model, train_DL, val_DL=None, config=None):
+    criterion = nn.CrossEntropyLoss()
+    optimizer = build_optimizer(model, config.optimizer, config.learning_rate)
+    scheduler = optim.lr_scheduler.LambdaLR(
+        optimizer=optimizer,
+        lr_lambda=lambda epoch: 0.95**epoch,
+        last_epoch=-1,
+        verbose=False)
+
+    for epoch in range(config.epochs / 2):
+        rloss = 0
+        model.train()
+        for _, samples in enumerate(train_DL):
+
+            k_train_mb, a_train_mb, y_train_mb = samples
+
+            hidden_k = torch.zeros(1,
+                                   config.batch_size,
+                                   config.hidden_size,
+                                   requires_grad=True).to(DEVICE)
+            cell_k = torch.zeros(1,
+                                 config.batch_size,
+                                 config.hidden_size,
+                                 requires_grad=True).to(DEVICE)
+            hidden_a = torch.zeros(1,
+                                   config.batch_size,
+                                   config.hidden_size,
+                                   requires_grad=True).to(DEVICE)
+            cell_a = torch.zeros(1,
+                                 config.batch_size,
+                                 config.hidden_size,
+                                 requires_grad=True).to(DEVICE)
+
+            # Forward
+            output = model((hidden_k, cell_k), (hidden_a, cell_a),
+                           (k_train_mb.to(DEVICE), a_train_mb.to(DEVICE)))
+
+            # Cost
+            loss = criterion(output.to(DEVICE),
+                             y_train_mb.squeeze().to(DEVICE))
+
+            # Backpropagate
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            loss_b = loss.item() * config.batch_size
+            rloss += float(loss_b)
+
+        model.eval()
+        with torch.no_grad():
+            # epoch loss
+            loss_e = rloss / len(train_DL.dataset)
+
+            if val_DL is not None:
+                # Validation
+                k_valid, a_valid, y_valid = next(iter(val_DL))
+
+                hidden_k = torch.zeros(1, len(val_DL.dataset),
+                                       config.hidden_size).to(DEVICE)
+                cell_k = torch.zeros(1, len(val_DL.dataset),
+                                     config.hidden_size).to(DEVICE)
+                hidden_a = torch.zeros(1, len(val_DL.dataset),
+                                       config.hidden_size).to(DEVICE)
+                cell_a = torch.zeros(1, len(val_DL.dataset),
+                                     config.hidden_size).to(DEVICE)
+
+                output = model((hidden_k, cell_k), (hidden_a, cell_a),
+                               (k_valid.to(DEVICE), a_valid.to(DEVICE)))
+                prediction = output.argmax(dim=1)
+                correct = prediction.eq(
+                    y_valid.view_as(prediction)).sum().item()
+                wandb.log({"Val accuracy": correct / len(val_DL.dataset)})
+
+            # Wandb log
+            wandb.log({"Loss_tf": loss_e})
+
+            if epoch % 100 == 0:
+                print(
+                    f"Epoch: {epoch}, train loss: {round(loss_e,3)}, Val accuracy: {round(correct/len(val_DL.dataset),3)}"
+                )
+        scheduler.step()
+
+
 def Test(model, test_DL, config=None):
     model.eval()
     with torch.no_grad():
-        for batch_idx, samples in enumerate(test_DL):
+        for _, samples in enumerate(test_DL):
             k_train_mb, a_train_mb, y_train_mb = samples
 
             hidden_k = torch.zeros(1, len(test_DL.dataset),
